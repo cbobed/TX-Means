@@ -55,6 +55,10 @@ if __name__ == '__main__':
                            help='clustering algorithm to be used', default='txmeans')
     my_parser.add_argument('-k', action='store', type=int, required=False,
                            help='[tkmeans] number of clusters', default=4)
+    my_parser.add_argument('-merge', action='store_true', required=False,
+                           help='[txmeans] merge_clusters parameter for txmeans', default=False)
+    my_parser.add_argument('-sampling', action='store_true', required=False,
+                           help='[txmeans] apply sampling to the txmeans method, defaults to the params given in the notebook', default=False)
     args = my_parser.parse_args()
 
     class_index = 0
@@ -86,7 +90,10 @@ if __name__ == '__main__':
         nsample = sample_size(nbaskets, 0.05, conf_level=0.99, prob=0.5)
         # Fit the model
         model = TXmeans()
-        model.fit(baskets_list, nbaskets, nitems, merge_clusters=True)
+        if args.sampling:
+            model.fit(baskets_list, nbaskets, nitems, merge_clusters=args.merge, random_sample=nsample)
+        else:
+            model.fit(baskets_list, nbaskets, nitems, merge_clusters=args.merge)
         end_time = datetime.datetime.now()
         running_time = end_time - start_time
     elif (args.algorithm == 'tkmeans'):
@@ -109,7 +116,7 @@ if __name__ == '__main__':
     for label, cluster in enumerate(res):
         # Revert the bitarray transform.
         cluster_list = basket_bitarray_to_list(cluster['cluster']).values()
-        output_file = args.input[:args.input.rfind(".dat")] + "-"+args.algorithm+"-"+str(label)+"_k"+str(len(res))+".dat"
+        output_file = args.input[:args.input.rfind(".csv")] + "_"+args.algorithm+"__"+str(label)+"_k"+str(len(res))+".dat"
         with open(output_file, 'w') as out:
             for trans in cluster_list:
                 out.write(' '.join([str(map_newitem_item[elem]) for elem in trans])+"\n")
