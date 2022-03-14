@@ -33,10 +33,10 @@ else:
 import argparse
 import algorithms.txmeans
 from algorithms.txmeans import TXmeans
+from algorithms.tkmeans import TKMeans
 from algorithms.txmeans import remap_items, count_items, sample_size # Util functions
 from algorithms.txmeans import basket_list_to_bitarray, basket_bitarray_to_list # Converting(Reverting) to(from) bitarray
 from generators.datamanager import read_synthetic_data # (Convert the data in nice basket format)
-from validation.validation_measures import delta_k, purity, normalized_mutual_info_score # Measure of Validation
 from algorithms.util import jaccard_bitarray
 
 import pandas as pd
@@ -49,11 +49,15 @@ if __name__ == '__main__':
     my_parser = argparse.ArgumentParser(allow_abbrev=False)
 
     my_parser.add_argument('-input', action='store', required=True,
-                           help=".dat file to be converted")
+                           help=".csv file to be clustered and splitted")
+
+    my_parser.add_argument('-algorithm', action='store', required=True,choices=['tkmeans', 'txmeans'],
+                           help='clustering algorithm to be used', default='txmeans')
+    my_parser.add_argument('-k', action='store', type=int, required=False,
+                           help='[tkmeans] number of clusters', default=4)
     args = my_parser.parse_args()
 
-    txmeans_model = TXmeans()
-    class_index = -1
+    class_index = 0
     baskets_real_labels = read_synthetic_data(args.input)
 
     # Save baskets and the real labels
@@ -68,6 +72,7 @@ if __name__ == '__main__':
     # Speeding up the Jaccard distance:
     baskets_list, map_newitem_item, map_item_newitem = remap_items(baskets_list)
     baskets_list = basket_list_to_bitarray(baskets_list, len(map_newitem_item))
+    temp_list = basket_bitarray_to_list(baskets_list).values()
 
     # Get the number of baskets (equal to number of data)
     nbaskets = len(baskets_list)
@@ -75,32 +80,37 @@ if __name__ == '__main__':
     # Get the number of different item
     nitems = count_items(baskets_list)
 
-    start_time = datetime.datetime.now()
-
-    # Get subsamples of the dataset (in order to speed up)
-    nsample = sample_size(nbaskets, 0.05, conf_level=0.99, prob=0.5)
-
-    # Fit the model
-    txmeans_model.fit(baskets_list, nbaskets, nitems)
-
-    end_time = datetime.datetime.now()
-    running_time = end_time - start_time
-
-    print(f'Execution time: {running_time}')
+    if (args.algorithm == 'txmeans'):
+        start_time = datetime.datetime.now()
+        # Get subsamples of the dataset (in order to speed up)
+        nsample = sample_size(nbaskets, 0.05, conf_level=0.99, prob=0.5)
+        # Fit the model
+        model = TXmeans()
+        model.fit(baskets_list, nbaskets, nitems, merge_clusters=True)
+        end_time = datetime.datetime.now()
+        running_time = end_time - start_time
+    elif (args.algorithm == 'tkmeans'):
+        start_time = datetime.datetime.now()
+        # Fit the model
+        model = TKMeans()
+        model.fit(baskets_list, nbaskets, nitems, k=args.k)
+        end_time = datetime.datetime.now()
+        running_time = end_time - start_time
+    print(f'Execution time {args.algorithm}: {running_time}')
 
     # Get the label and the clusters
-    res = txmeans_model.clustering
+    res = model.clustering
 
     # Number of iteration of the model for the convergence
-    iter_count = txmeans_model.iter_count
-
+    iter_count = model.iter_count
+    print(f'iterations {iter_count}')
     # Initialize empty cluster list
     baskets_clusters = list()
     for label, cluster in enumerate(res):
         # Revert the bitarray transform.
         cluster_list = basket_bitarray_to_list(cluster['cluster']).values()
-        output_file = args.input[:args.input.rfind(".dat")] + "-txmeans-"+str(label)+".dat"
+        output_file = args.input[:args.input.rfind(".dat")] + "-"+args.algorithm+"-"+str(label)+"_k"+str(len(res))+".dat"
         with open(output_file, 'w') as out:
             for trans in cluster_list:
-                out.write(' '.join([str(elem) for elem in trans])+"\n")
+                out.write(' '.join([str(map_newitem_item[elem]) for elem in trans])+"\n")
 

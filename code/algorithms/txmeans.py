@@ -555,6 +555,8 @@ def filter_items(baskets, item_baskets, nitems, items_in_every_basket=None):
     is_homogeneous = True
     for b in baskets:
         filtered_baskets[b] = (baskets[b] ^ items_in_every_basket) & baskets[b]
+        # According to the paper, I think it should be as follows - pending to be confirmed by authors
+        # filtered_baskets[b] = baskets[b] & ~(baskets[b] & items_in_every_basket)
         is_homogeneous = is_homogeneous and not filtered_baskets[b].any()
 
     return filtered_baskets, items_in_every_basket, item_baskets, is_homogeneous

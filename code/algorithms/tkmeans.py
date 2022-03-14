@@ -234,8 +234,8 @@ class TKMeans:
             if len(res) > 0:
                 clustering_res.append({
                     'cluster': res,
-                    'centroid': centroids[cluster_centroid[res.keys()[0]]],
-                    'centroid_id': cluster_centroid[res.keys()[0]]
+                    'centroid': centroids[cluster_centroid[list(res.keys())[0]]],
+                    'centroid_id': cluster_centroid[list(res.keys())[0]]
                 })
             else:
                 clustering_res.append({
